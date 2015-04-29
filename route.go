@@ -7,6 +7,7 @@ package mux
 import (
 	"errors"
 	"fmt"
+
 	"net/http"
 	"net/url"
 	"strings"
@@ -17,7 +18,7 @@ type Route struct {
 	// Parent where the route was registered (a Router).
 	parent parentRoute
 	// Request handler for the route.
-	handler http.Handler
+	handler MuxHandler
 	// List of matchers.
 	matchers []matcher
 	// Manager for the variables from host and path.
@@ -81,7 +82,7 @@ func (r *Route) BuildOnly() *Route {
 // Handler --------------------------------------------------------------------
 
 // Handler sets a handler for the route.
-func (r *Route) Handler(handler http.Handler) *Route {
+func (r *Route) Handler(handler MuxHandler) *Route {
 	if r.err == nil {
 		r.handler = handler
 	}
@@ -89,12 +90,12 @@ func (r *Route) Handler(handler http.Handler) *Route {
 }
 
 // HandlerFunc sets a handler function for the route.
-func (r *Route) HandlerFunc(f func(http.ResponseWriter, *http.Request)) *Route {
-	return r.Handler(http.HandlerFunc(f))
+func (r *Route) HandlerFunc(f func(*Context)) *Route {
+	return r.Handler(MuxHandlerFunc(f))
 }
 
 // GetHandler returns the handler for the route, if any.
-func (r *Route) GetHandler() http.Handler {
+func (r *Route) GetHandler() MuxHandler {
 	return r.handler
 }
 

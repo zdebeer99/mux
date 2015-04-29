@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"path"
-
-	"github.com/gorilla/context"
 )
 
 // NewRouter returns a new router instance.
@@ -37,7 +35,7 @@ func NewRouter() *Router {
 // This will send all incoming requests to the router.
 type Router struct {
 	// Configurable Handler to be used when no route matches.
-	NotFoundHandler http.Handler
+	NotFoundHandler MuxHandler
 	// Parent route, if this is a subrouter.
 	parent parentRoute
 	// Routes to be matched, in order.
@@ -80,22 +78,20 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	var match RouteMatch
-	var handler http.Handler
+	var handler MuxHandler
+	c := &Context{w, req, nil, nil}
 	if r.Match(req, &match) {
 		handler = match.Handler
-		setVars(req, match.Vars)
-		setCurrentRoute(req, match.Route)
+		c.Vars = match.Vars
+		c.Route = match.Route
 	}
 	if handler == nil {
 		handler = r.NotFoundHandler
 		if handler == nil {
-			handler = http.NotFoundHandler()
+			handler = FromHttpHandler(http.NotFoundHandler())
 		}
 	}
-	if !r.KeepContext {
-		defer context.Clear(req)
-	}
-	handler.ServeHTTP(w, req)
+	handler.ServeHTTP(c)
 }
 
 // Get returns a route registered with the given name.
@@ -172,14 +168,13 @@ func (r *Router) NewRoute() *Route {
 
 // Handle registers a new route with a matcher for the URL path.
 // See Route.Path() and Route.Handler().
-func (r *Router) Handle(path string, handler http.Handler) *Route {
+func (r *Router) Handle(path string, handler MuxHandler) *Route {
 	return r.NewRoute().Path(path).Handler(handler)
 }
 
 // HandleFunc registers a new route with a matcher for the URL path.
 // See Route.Path() and Route.HandlerFunc().
-func (r *Router) HandleFunc(path string, f func(http.ResponseWriter,
-	*http.Request)) *Route {
+func (r *Router) HandleFunc(path string, f func(*Context)) *Route {
 	return r.NewRoute().Path(path).HandlerFunc(f)
 }
 
@@ -244,7 +239,7 @@ func (r *Router) BuildVarsFunc(f BuildVarsFunc) *Route {
 // RouteMatch stores information about a matched route.
 type RouteMatch struct {
 	Route   *Route
-	Handler http.Handler
+	Handler MuxHandler
 	Vars    map[string]string
 }
 
@@ -254,30 +249,6 @@ const (
 	varsKey contextKey = iota
 	routeKey
 )
-
-// Vars returns the route variables for the current request, if any.
-func Vars(r *http.Request) map[string]string {
-	if rv := context.Get(r, varsKey); rv != nil {
-		return rv.(map[string]string)
-	}
-	return nil
-}
-
-// CurrentRoute returns the matched route for the current request, if any.
-func CurrentRoute(r *http.Request) *Route {
-	if rv := context.Get(r, routeKey); rv != nil {
-		return rv.(*Route)
-	}
-	return nil
-}
-
-func setVars(r *http.Request, val interface{}) {
-	context.Set(r, varsKey, val)
-}
-
-func setCurrentRoute(r *http.Request, val interface{}) {
-	context.Set(r, routeKey, val)
-}
 
 // ----------------------------------------------------------------------------
 // Helpers
