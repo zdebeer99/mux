@@ -18,7 +18,7 @@ type Route struct {
 	// Parent where the route was registered (a Router).
 	parent parentRoute
 	// Request handler for the route.
-	handler MuxHandler
+	handler Handler
 	// List of matchers.
 	matchers []matcher
 	// Manager for the variables from host and path.
@@ -82,7 +82,7 @@ func (r *Route) BuildOnly() *Route {
 // Handler --------------------------------------------------------------------
 
 // Handler sets a handler for the route.
-func (r *Route) Handler(handler MuxHandler) *Route {
+func (r *Route) Handler(handler Handler) *Route {
 	if r.err == nil {
 		r.handler = handler
 	}
@@ -91,11 +91,11 @@ func (r *Route) Handler(handler MuxHandler) *Route {
 
 // HandlerFunc sets a handler function for the route.
 func (r *Route) HandlerFunc(f func(*Context)) *Route {
-	return r.Handler(MuxHandlerFunc(f))
+	return r.Handler(HandlerFunc(f))
 }
 
 // GetHandler returns the handler for the route, if any.
-func (r *Route) GetHandler() MuxHandler {
+func (r *Route) GetHandler() Handler {
 	return r.handler
 }
 

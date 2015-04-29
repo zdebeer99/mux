@@ -11,24 +11,24 @@ type Context struct {
 	Route    *Route
 }
 
-type MuxHandlerFunc func(*Context)
+type HandlerFunc func(*Context)
 
-func (f MuxHandlerFunc) ServeHTTP(c *Context) {
+func (f HandlerFunc) ServeHTTP(c *Context) {
 	f(c)
 }
 
-type MuxHandler interface {
+type Handler interface {
 	ServeHTTP(*Context)
 }
 
-type MuxHandlerAdapter struct {
+type HandlerAdapter struct {
 	handle http.Handler
 }
 
-func FromHttpHandler(handle http.Handler) *MuxHandlerAdapter {
-	return &MuxHandlerAdapter{handle}
+func FromHttpHandler(handle http.Handler) *HandlerAdapter {
+	return &HandlerAdapter{handle}
 }
 
-func (this *MuxHandlerAdapter) ServeHTTP(c *Context) {
+func (this *HandlerAdapter) ServeHTTP(c *Context) {
 	this.handle.ServeHTTP(c.Response, c.Request)
 }

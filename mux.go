@@ -35,7 +35,7 @@ func NewRouter() *Router {
 // This will send all incoming requests to the router.
 type Router struct {
 	// Configurable Handler to be used when no route matches.
-	NotFoundHandler MuxHandler
+	NotFoundHandler Handler
 	// Parent route, if this is a subrouter.
 	parent parentRoute
 	// Routes to be matched, in order.
@@ -78,7 +78,7 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	var match RouteMatch
-	var handler MuxHandler
+	var handler Handler
 	c := &Context{w, req, nil, nil}
 	if r.Match(req, &match) {
 		handler = match.Handler
@@ -168,8 +168,14 @@ func (r *Router) NewRoute() *Route {
 
 // Handle registers a new route with a matcher for the URL path.
 // See Route.Path() and Route.Handler().
-func (r *Router) Handle(path string, handler MuxHandler) *Route {
+func (r *Router) Handle(path string, handler Handler) *Route {
 	return r.NewRoute().Path(path).Handler(handler)
+}
+
+// Handle registers a new route with a matcher for the URL path.
+// See Route.Path() and Route.Handler().
+func (r *Router) HandleHttp(path string, handler http.Handler) *Route {
+	return r.NewRoute().Path(path).Handler(FromHttpHandler(handler))
 }
 
 // HandleFunc registers a new route with a matcher for the URL path.
@@ -239,7 +245,7 @@ func (r *Router) BuildVarsFunc(f BuildVarsFunc) *Route {
 // RouteMatch stores information about a matched route.
 type RouteMatch struct {
 	Route   *Route
-	Handler MuxHandler
+	Handler Handler
 	Vars    map[string]string
 }
 
