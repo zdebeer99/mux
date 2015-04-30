@@ -12,7 +12,7 @@ import (
 
 // NewRouter returns a new router instance.
 func NewRouter() *Router {
-	return &Router{namedRoutes: make(map[string]*Route), KeepContext: false}
+	return &Router{namedRoutes: make(map[string]*Route)}
 }
 
 // Router registers routes to be matched and dispatches a handler.
@@ -44,8 +44,10 @@ type Router struct {
 	namedRoutes map[string]*Route
 	// See Router.StrictSlash(). This defines the flag for new routes.
 	strictSlash bool
-	// If true, do not clear the request context after handling the request
-	KeepContext bool
+	// create a custom context passed to the handler function
+	contextFactory func(w http.ResponseWriter, req *http.Request) interface{}
+
+	handleApapter func(ctx interface{})
 }
 
 // Match matches registered routes against the request.
@@ -79,11 +81,20 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	var match RouteMatch
 	var handler Handler
-	c := &Context{w, req, nil, nil}
+	var ctx interface{}
+	if r.contextFactory != nil {
+		ctx = r.contextFactory(w, req)
+	} else {
+		ctx = NewContext(w, req)
+	}
 	if r.Match(req, &match) {
 		handler = match.Handler
-		c.Vars = match.Vars
-		c.Route = match.Route
+		if vcx, ok := ctx.(SupportVars); ok {
+			vcx.SetVars(match.Vars)
+		}
+		if rcx, ok := ctx.(SupportRoute); ok {
+			rcx.SetRoute(match.Route)
+		}
 	}
 	if handler == nil {
 		handler = r.NotFoundHandler
@@ -91,7 +102,12 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			handler = FromHttpHandler(http.NotFoundHandler())
 		}
 	}
-	handler.ServeHTTP(c)
+
+	if r.handleApapter != nil {
+		r.handleApapter(handler.ServeHTTP)
+	} else {
+		handler.ServeHTTP(ctx)
+	}
 }
 
 // Get returns a route registered with the given name.
@@ -180,7 +196,7 @@ func (r *Router) HandleHttp(path string, handler http.Handler) *Route {
 
 // HandleFunc registers a new route with a matcher for the URL path.
 // See Route.Path() and Route.HandlerFunc().
-func (r *Router) HandleFunc(path string, f func(*Context)) *Route {
+func (r *Router) HandleFunc(path string, f func(interface{})) *Route {
 	return r.NewRoute().Path(path).HandlerFunc(f)
 }
 
@@ -236,6 +252,19 @@ func (r *Router) Schemes(schemes ...string) *Route {
 // route variables before building a URL.
 func (r *Router) BuildVarsFunc(f BuildVarsFunc) *Route {
 	return r.NewRoute().BuildVarsFunc(f)
+}
+
+// SetContextFactory can be used to create custom context objects, the object must contain
+// mux.Context as a anonmys type.
+// Casting is left to the user.
+// Default context factory returns &mux.Context{w, req, nil, nil}
+func (r *Router) SetContextFactory(f func(w http.ResponseWriter, req *http.Request) interface{}) {
+	r.contextFactory = f
+}
+
+func (r *Router) SetHandleAdapter(f func(ctx interface{})) {
+	r.handleApapter = f
+	panic("Not Implementet")
 }
 
 // ----------------------------------------------------------------------------

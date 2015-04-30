@@ -90,8 +90,12 @@ func (r *Route) Handler(handler Handler) *Route {
 }
 
 // HandlerFunc sets a handler function for the route.
-func (r *Route) HandlerFunc(f func(*Context)) *Route {
+func (r *Route) HandlerFunc(f func(interface{})) *Route {
 	return r.Handler(HandlerFunc(f))
+}
+
+func (r *Route) HandlerHttp(handler http.Handler) *Route {
+	return r.Handler(FromHttpHandler(handler))
 }
 
 // GetHandler returns the handler for the route, if any.

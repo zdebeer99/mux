@@ -4,21 +4,54 @@ import (
 	"net/http"
 )
 
-type Context struct {
-	Response http.ResponseWriter
-	Request  *http.Request
+func NewContext(w http.ResponseWriter, req *http.Request) *HandlerContext {
+	return &HandlerContext{w, req, nil, nil}
+}
+
+type (
+	HttpContext interface {
+		Response() http.ResponseWriter
+		Request() *http.Request
+	}
+	SupportVars interface {
+		SetVars(map[string]string)
+	}
+	SupportRoute interface {
+		SetRoute(*Route)
+	}
+)
+
+type HandlerContext struct {
+	response http.ResponseWriter
+	request  *http.Request
 	Vars     map[string]string
 	Route    *Route
 }
 
-type HandlerFunc func(*Context)
+func (this *HandlerContext) SetVars(vars map[string]string) {
+	this.Vars = vars
+}
 
-func (f HandlerFunc) ServeHTTP(c *Context) {
+func (this *HandlerContext) SetRoute(route *Route) {
+	this.Route = route
+}
+
+func (this *HandlerContext) Response() http.ResponseWriter {
+	return this.response
+}
+
+func (this *HandlerContext) Request() *http.Request {
+	return this.request
+}
+
+type HandlerFunc func(interface{})
+
+func (f HandlerFunc) ServeHTTP(c interface{}) {
 	f(c)
 }
 
 type Handler interface {
-	ServeHTTP(*Context)
+	ServeHTTP(interface{})
 }
 
 type HandlerAdapter struct {
@@ -29,6 +62,9 @@ func FromHttpHandler(handle http.Handler) *HandlerAdapter {
 	return &HandlerAdapter{handle}
 }
 
-func (this *HandlerAdapter) ServeHTTP(c *Context) {
-	this.handle.ServeHTTP(c.Response, c.Request)
+func (this *HandlerAdapter) ServeHTTP(mc interface{}) {
+	switch val1 := mc.(type) {
+	case HttpContext:
+		this.handle.ServeHTTP(val1.Response(), val1.Request())
+	}
 }

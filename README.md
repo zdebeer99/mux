@@ -28,3 +28,16 @@ func main() {
   http.ListenAndServe(":3001", r)
 }
 ```
+
+File Server Example:
+
+```go
+  r := mux.NewRouter()
+  //Serve files from the static folder in your project folder and access Ex: http://localhost/public/jquery.js
+  r.FileServer("/public/","static")
+```
+
+Custom Context Example:
+```go
+  r := mux.NewRouter()
+```
