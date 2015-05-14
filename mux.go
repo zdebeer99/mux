@@ -110,6 +110,52 @@ func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// ServeHTTPContext Can be used when the context class is already created by your middleware.
+func (r *Router) ServeHTTPContext(c interface{}) {
+	ctx := c.(HttpContext)
+	req := ctx.Request()
+	w := ctx.Response()
+
+	// Clean path to canonical form and redirect.
+	if p := cleanPath(req.URL.Path); p != req.URL.Path {
+
+		// Added 3 lines (Philip Schlump) - It was droping the query string and #whatever from query.
+		// This matches with fix in go 1.2 r.c. 4 for same problem.  Go Issue:
+		// http://code.google.com/p/go/issues/detail?id=5252
+		url := *req.URL
+		url.Path = p
+		p = url.String()
+
+		w.Header().Set("Location", p)
+		w.WriteHeader(http.StatusMovedPermanently)
+		return
+	}
+	var match RouteMatch
+	var handler Handler
+
+	if r.Match(req, &match) {
+		handler = match.Handler
+		if vcx, ok := ctx.(SupportVars); ok {
+			vcx.SetVars(match.Vars)
+		}
+		if rcx, ok := ctx.(SupportRoute); ok {
+			rcx.SetRoute(match.Route)
+		}
+	}
+	if handler == nil {
+		handler = r.NotFoundHandler
+		if handler == nil {
+			handler = FromHttpHandler(http.NotFoundHandler())
+		}
+	}
+
+	if r.handleApapter != nil {
+		r.handleApapter(handler.ServeHTTP)
+	} else {
+		handler.ServeHTTP(ctx)
+	}
+}
+
 // Get returns a route registered with the given name.
 func (r *Router) Get(name string) *Route {
 	return r.getNamedRoutes()[name]
