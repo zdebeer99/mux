@@ -161,12 +161,6 @@ func (r *Router) Get(name string) *Route {
 	return r.getNamedRoutes()[name]
 }
 
-// GetRoute returns a route registered with the given name. This method
-// was renamed to Get() and remains here for backwards compatibility.
-func (r *Router) GetRoute(name string) *Route {
-	return r.getNamedRoutes()[name]
-}
-
 // StrictSlash defines the trailing slash behavior for new routes. The initial
 // value is false.
 //
